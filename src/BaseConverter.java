@@ -1,3 +1,5 @@
+import java.util.Arrays;
+
 /**
  * Kareem Halabi
  * 260 616 162
@@ -162,18 +164,21 @@ public class BaseConverter {
 		
 		//create result array large enough to hold result
 		short[] result = new short
-				[(int) Math.ceil(Math.log(srcBase)/Math.log(destBase))];
+				[(int) (Math.ceil(Math.log(srcBase)/Math.log(destBase)))*num.length];
 				// ceil( log(srcBase)
-				//       /log(destBase))
-		try {
-			while(true) {
-				//sub(number,new short[] {srcBase});
-			}
-		} catch (Exception e) {
-			
-		}		
+				//       /log(destBase))*number_of_digits
 		
-		return result;
+		int i = 0;
+		
+		//ignoring negatives so only have to worry about equating to an array of 0s
+		while(!Arrays.equals(number, new short[number.length])) {
+			short[][] division = div(number, new short[] {destBase}, srcBase);
+			result[i] = division[1][0]; // digit = number % base
+			number = division[0]; // number = number / base
+			i++;
+		}
+		
+		return truncate(result);
 	}
 
 	public short[] truncate(short[] result) {
@@ -194,16 +199,22 @@ public class BaseConverter {
 	
 	public static void main(String[] args) {
 		BaseConverter bc = new BaseConverter();
-		short[] arg1 = {1,0,9,8,7,6,5,4,3,2,1};
-		bc.printNumber(arg1);
-		short[] arg2 = {5,6};
-		bc.printNumber(arg2);
-		
-		bc.printNumber(bc.mul(arg1,arg2,(short) 10));
+//		short[] arg1 = {1,0,9,8,7,6,5,4,3,2,1};
+//		bc.printNumber(arg1);
+//		short[] arg2 = {5,6};
+//		bc.printNumber(arg2);
+//		
+//		bc.printNumber(bc.mul(arg1,arg2,(short) 10));
 		
 //		short[][] quotient_remainder = bc.div(arg1, arg2, (short) 10);
 //		bc.printNumber(quotient_remainder[0]);
 //		bc.printNumber(quotient_remainder[1]);
+		
+		short[] number = {7,6,5,4,3,2,1};
+		short base = 16;
+		bc.printNumber(number);
+		bc.printNumber(bc.convertInt(number, base, (short) 2));
+		
 		
 	}	
 }
