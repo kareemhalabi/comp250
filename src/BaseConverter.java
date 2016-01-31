@@ -159,6 +159,20 @@ public class BaseConverter {
 	
 	public short[] convertInt(short[] num, short srcBase, short destBase) {
 		
+		//represent "destBaseArray" in the base of "num"
+		short[] destBaseInSrcBase = new short[6];
+		//for this assignment the largest neccesary array would be 6 digits
+		//i.e (representing 60 in base 2 takes 6 digits)
+		short m = destBase;
+		int j = 0;
+		while(m > 0) {
+			destBaseInSrcBase[j] = (short) (m % srcBase);
+			m = (short) (m/srcBase);
+			j++;
+		}
+		destBaseInSrcBase = truncate(destBaseInSrcBase);
+		
+		
 		short[] number = new short[num.length];
 		System.arraycopy(num, 0, number, 0, num.length);
 		
@@ -172,7 +186,7 @@ public class BaseConverter {
 		
 		//ignoring negatives so only have to worry about equating to an array of 0s
 		while(!Arrays.equals(number, new short[number.length])) {
-			short[][] division = div(number, new short[] {destBase}, srcBase);
+			short[][] division = div(number, destBaseInSrcBase, srcBase);
 			result[i] = division[1][0]; // digit = number % base
 			number = division[0]; // number = number / base
 			i++;
@@ -211,10 +225,9 @@ public class BaseConverter {
 //		bc.printNumber(quotient_remainder[1]);
 		
 		short[] number = {7,6,5,4,3,2,1};
-		short base = 16;
+		short base = 30;
 		bc.printNumber(number);
-		bc.printNumber(bc.convertInt(number, base, (short) 2));
-		
+		bc.printNumber(bc.convertInt(number, base, (short) 5));
 		
 	}	
 }
