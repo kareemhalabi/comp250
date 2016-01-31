@@ -138,23 +138,37 @@ public class BaseConverter {
 	//returns {quotient, remainder}
 	public short[][] div(short[] a, short[] b, short base) {
 		
+		//stores intermediate subtraction result
+		short[] temp = new short[a.length];
+		System.arraycopy(a, 0, temp, 0, a.length);
+		
+		//stores quotient
 		short[] q = new short[a.length];
-		short[] r = new short[a.length];
-		// r = a
-		System.arraycopy(a, 0, r, 0, a.length);
-
 		
-		try {
-			while(true) {
-				//once r<d, exception is thrown ending loop
-				short[] result = sub(r,b,base);
-				q = add(q, new short[] {1}, base);
-				r = result;
+		//indicies to keep track of the size of the arrays
+		int i = (temp.length-b.length);
+		int j = 0;
+		while(i>=0) {
+			short[] subArray = new short[a.length-j];
+			System.arraycopy(b, 0, subArray, i, b.length);
+			
+			try {
+				while(true) {
+					//once b>subArray, exception is thrown ending loop
+					temp = sub(temp, subArray, base);
+					short[] one = new short[q.length];
+					one[i] = 1;
+					q = add(q, one, base);
+				}
+			} catch(Exception e) {
+				i--;
+				j++;
+				temp = truncate(temp);
+				subArray = truncate(subArray);
 			}
-		} catch(Exception e) {}
+		}
 		
-		return new short[][] {truncate(q), truncate(r)};
-		
+		return new short[][] {truncate(q), truncate(temp)};
 	}
 	
 	public short[] convertInt(short[] num, short srcBase, short destBase) {
@@ -213,21 +227,13 @@ public class BaseConverter {
 	
 	public static void main(String[] args) {
 		BaseConverter bc = new BaseConverter();
-//		short[] arg1 = {1,0,9,8,7,6,5,4,3,2,1};
-//		bc.printNumber(arg1);
-//		short[] arg2 = {5,6};
-//		bc.printNumber(arg2);
-//		
-//		bc.printNumber(bc.mul(arg1,arg2,(short) 10));
 		
-//		short[][] quotient_remainder = bc.div(arg1, arg2, (short) 10);
-//		bc.printNumber(quotient_remainder[0]);
-//		bc.printNumber(quotient_remainder[1]);
-		
-		short[] number = {7,6,5,4,3,2,1};
-		short base = 30;
+		short[] number = {1,2,3,4,5,6,7,8,9};
+		short[] number2 = {6,2};
+		short srcBase = 20;
+		short destBase = 60;
 		bc.printNumber(number);
-		bc.printNumber(bc.convertInt(number, base, (short) 5));
+		bc.printNumber(bc.convertInt(number, srcBase, destBase));
 		
 	}	
 }

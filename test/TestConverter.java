@@ -12,22 +12,25 @@ import org.junit.Test;
 public class TestConverter {
 
 	BaseConverter bc;
+	short[] result;
+	short[] number = {1,2,3,4,5,6,7,8,9};
+	short srcBase = 20;
+	short destBase = 60;
 	
 	@Before
 	public void setUp() throws Exception {
 		bc = new BaseConverter();
+		bc.printNumber(number);
 	}
 
 	@After
 	public void tearDown() throws Exception {
+		bc.printNumber(result);
 	}
 
 	@Test
 	public void test() {
-		short[] number = {7,6,5,4,3,2,1};
-		short base = 30;
-		bc.printNumber(number);
-		bc.printNumber(bc.convertInt(number, base, (short) 5));
+		result = bc.convertInt(number, srcBase, destBase);
 	}
 
 }
