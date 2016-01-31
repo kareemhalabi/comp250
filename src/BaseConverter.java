@@ -1,5 +1,3 @@
-import java.util.Arrays;
-
 /**
  * Kareem Halabi
  * 260 616 162
@@ -186,7 +184,7 @@ public class BaseConverter {
 		}
 		destBaseInSrcBase = truncate(destBaseInSrcBase);
 		
-		
+		//copy the input to a new array
 		short[] number = new short[num.length];
 		System.arraycopy(num, 0, number, 0, num.length);
 		
@@ -199,9 +197,16 @@ public class BaseConverter {
 		int i = 0;
 		
 		//ignoring negatives so only have to worry about equating to an array of 0s
-		while(!Arrays.equals(number, new short[number.length])) {
+		while(!java.util.Arrays.equals(number, new short[number.length])) {
 			short[][] division = div(number, destBaseInSrcBase, srcBase);
-			result[i] = division[1][0]; // digit = number % base
+			
+			//represent remainder in new base
+			short remainder = 0;
+			for(int k = 0; k<division[1].length; k++)
+				remainder += division[1][k]*Math.pow(srcBase, k);
+
+			result[i] = remainder;
+			
 			number = division[0]; // number = number / base
 			i++;
 		}
