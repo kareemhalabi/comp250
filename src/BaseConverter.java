@@ -5,6 +5,7 @@
 
 public class BaseConverter {
 
+	//=========== Arithmetic Operations ===========//
 	public short[] add(short[] a, short[] b, short base) {
 		
 		//create a result array big enough
@@ -41,72 +42,10 @@ public class BaseConverter {
 		short[] temp = new short[size-1];
 		System.arraycopy(result, 0, temp, 0, (size-1));
 		return temp;
-	}
-	
-	public short[] mul(short[] a, short[] b, short base) {
-		
-		//ensures the larger array is first
-		short[] inA;
-		short[] inB;
-		if(a.length > b.length){
-			inA = a;
-			inB = b;
-		} else {
-			inA = b;
-			inB = a;
-		}
-		
-		//create a 2d array to hold the intermediate products
-		short[][] temp = new short[inB.length][2*inA.length];
-		
-		for(int j = 0; j < inB.length; j++) {
-			short carry = 0;
-			for(int i = 0; i < inA.length; i++) {
-				short product = (short) (inA[i] * inB[j] + carry);
-				temp[j][i+j] = (short) (product % base);
-				carry = (short) (product/base);
-			}
-			temp[j][inA.length + j] = carry;
-		}
-		
-		//add the intermediate steps
-		return addAll(temp, base);	
-	}
+	}	
 
-	public short[] addAll(short[][] numbers, short base) {
-		
-		//Finds the number with the most digits
-		int maxLength = 0;
-		for(int i = 0; i < numbers.length; i++)
-			if(numbers[i].length > maxLength)
-				maxLength = numbers[i].length;
-		
-		//Creates a new array to hold all the sums
-		short[][] temp = new short[numbers.length][maxLength];
-		for(int i = 0; i < temp.length; i++)
-			System.arraycopy(numbers[i], 0, temp[i], 0, numbers[i].length);
-		
-		short[] result = new short[temp[0].length];
-		short carry = 0;
-		for(int i = 0; i < result.length - 1; i++) {
-			
-			short sum = carry;
-			for(int j = 0; j < temp.length; j++) 
-				sum += temp[j][i];
-			
-			result[i] = (short) (sum % base);
-			carry = (short) (sum/base);
-		}
-		
-		//copies the last carry into the last index of the result
-		result[result.length-1] = carry;
-		
-		//truncate resulting array
-		return truncate(result);
-	}
-	
-	// assuming a > b
-	//TODO try and get to work with negative
+	// assuming a >= b
+	// throws Exception if a < b
 	public short[] sub(short[] a, short[] b, short base) throws Exception {
 		
 		short[] result = new short[a.length];
@@ -128,10 +67,9 @@ public class BaseConverter {
 		}
 		
 		//truncate resulting array
-		return truncate(result);
+		return truncateTrailing(result);
 	}
-	
-	//assuming a > b, b != 0
+	//assuming a >= b, b != 0
 	//performs a/b
 	//returns {quotient, remainder}
 	public short[][] div(short[] a, short[] b, short base) {
@@ -161,17 +99,118 @@ public class BaseConverter {
 			} catch(Exception e) {
 				i--;
 				j++;
-				temp = truncate(temp);
-				subArray = truncate(subArray);
+				temp = truncateTrailing(temp);
+				subArray = truncateTrailing(subArray);
 			}
 		}
 		
-		return new short[][] {truncate(q), truncate(temp)};
+		return new short[][] {truncateTrailing(q), truncateTrailing(temp)};
 	}
 	
-	public short[] convertInt(short[] num, short srcBase, short destBase) {
+	//This version of div only handles fractions < 1 i.e
+	//assuming a<b b != 0
+	//performs a/b
+	//returns {nonRep, rep}
+	public short[][] divModified(short[] a, short[] b, short base) {
 		
-		//represent "destBaseArray" in the base of "num"
+		//stores intermediate subtraction result
+		short[] temp = new short[a.length];
+		System.arraycopy(a, 0, temp, 0, a.length);
+		
+		//stores quotient
+		java.util.ArrayList<Short> q = new java.util.ArrayList<Short>();
+		//stores remainders
+		java.util.ArrayList<Short> remainders = new java.util.ArrayList<Short>();
+		
+		short remainder;
+		outer:while(true) {
+			
+			q.add(0, (short) 0);
+			try {
+				while(true) {
+					//once b>subArray, exception is thrown ending loop
+					temp = sub(temp, b, base);
+					q.set(0, (short) (q.get(0)+1)); //q[i]++
+				}
+			} catch(Exception e) {}
+			
+			remainder = digitsToShort(temp, base);
+			if(remainders.contains(remainder))
+				break outer;
+			remainders.add(remainder);
+			
+			//copy temp into new array with a 0 at first index
+			temp = truncateTrailing(temp);
+			short[] temp2 = new short[temp.length + 1];
+			System.arraycopy(temp, 0, temp2, 1, temp.length);
+			temp = temp2;
+		}
+		
+		int repeatingIndex = search(remainders, remainder);
+		
+		//TODO fix the arrayCopies
+		short[] rep;
+		short[] nonRep;
+				
+		if (repeatingIndex != 0) {
+			rep = convertToArray(q, 0, q.size() - repeatingIndex - 1);
+			nonRep = convertToArray(q, q.size()-repeatingIndex,
+					(q.size() - 1));
+					//^^^^ the last index of q is the 0 to the left of the decimal place
+					//so we don't need it
+			
+			return new short[][] {nonRep, rep};
+		}
+		
+		nonRep = new short[0];
+		rep = convertToArray(q, 0, q.size()-1);
+		return new short[][] {nonRep, rep};
+	}
+	
+	public short[] convertToArray(java.util.ArrayList<Short> list, int start, int end) {
+		
+		short[] array = new short[end-start];
+		for(int i = 0; i < array.length; i++)
+			array[i] = list.get(start+i);
+		
+		return array;
+	}
+	
+	public int search(java.util.ArrayList<Short> list, short key) {
+		
+		for(int i = 0; i < list.size(); i++)
+			if(list.get(i)==key)
+				return i;
+		return -1;
+	}
+	
+	public Short digitsToShort(short[] digits, short base) {
+		
+		short remainder = 0;
+		for(int k = 0; k < digits.length; k++)
+			remainder += digits[k]*Math.pow(base, k);
+		return remainder;
+	}
+
+	//=========== Helper Methods ===========//
+	public short[] truncateTrailing(short[] input) {
+		int finalLength = input.length;
+		while(input[finalLength-1] == 0 && finalLength > 1)
+			finalLength--;
+		
+		short[] finalResult = new short[finalLength];
+		System.arraycopy(input, 0, finalResult, 0, finalLength);
+		return finalResult;
+	}
+	
+	public void truncateLeading(java.util.ArrayList<Short> input) {	
+		while(input.get(0) == 0)
+			input.remove(0);
+	}
+
+	//represent "destBaseArray" in the base of "num"
+	public short[] destBaseArray(short srcBase, short destBase) {
+		
 		short[] destBaseInSrcBase = new short[6];
 		//for this assignment the largest neccesary array would be 6 digits
 		//i.e (representing 60 in base 2 takes 6 digits)
@@ -182,7 +221,18 @@ public class BaseConverter {
 			m = (short) (m/srcBase);
 			j++;
 		}
-		destBaseInSrcBase = truncate(destBaseInSrcBase);
+		destBaseInSrcBase = truncateTrailing(destBaseInSrcBase);
+		return destBaseInSrcBase;
+	}
+
+	//=========== Converters ===========//
+	
+	//assuming: 2<=srcBase<=60, 2<=srcBase<=60,
+	//"num" is non-empty, not null and contains all positive digits
+	//that do not exceed "srcBase"-1
+	public short[] convertInt(short[] num, short srcBase, short destBase) {
+		
+		short[] destBaseInSrcBase = destBaseArray(srcBase, destBase);
 		
 		//copy the input to a new array
 		short[] number = new short[num.length];
@@ -201,30 +251,36 @@ public class BaseConverter {
 			short[][] division = div(number, destBaseInSrcBase, srcBase);
 			
 			//represent remainder in new base
-			short remainder = 0;
-			for(int k = 0; k<division[1].length; k++)
-				remainder += division[1][k]*Math.pow(srcBase, k);
-
-			result[i] = remainder;
+			result[i] = digitsToShort(division[1], srcBase);
 			
 			number = division[0]; // number = number / base
 			i++;
 		}
 		
-		return truncate(result);
+		return truncateTrailing(result);
 	}
 
-	public short[] truncate(short[] result) {
-		int finalLength = result.length;
-		while(result[finalLength-1] == 0 && finalLength > 1)
-			finalLength--;
+	public short[][] convertFraction(short[] fractionIn, short srcBase, short destBase) {
 		
-		short[] finalResult = new short[finalLength];
-		System.arraycopy(result, 0, finalResult, 0, finalLength);
-		return finalResult;
+		short[] p = convertInt(fractionIn, srcBase, destBase);
+		
+		short[] z = new short[fractionIn.length + 1];
+		z[z.length-1] = 1;
+		
+		short[] q = convertInt(z, srcBase, destBase);
+		
+		return divModified(p,q,destBase);	
 	}
-	
+
 	public void printNumber(short [] num) {
+		
+		//Handles 0 length array
+		if(num.length == 0) {
+			System.out.println();
+			return;
+		}
+			
+		
 		for(int i = num.length-1; i > 0; i--)
 			System.out.print(num[i] + ",");
 		System.out.println(num[0]);
@@ -233,12 +289,9 @@ public class BaseConverter {
 	public static void main(String[] args) {
 		BaseConverter bc = new BaseConverter();
 		
-		short[] number = {1,2,3,4,5,6,7,8,9};
-		short[] number2 = {6,2};
-		short srcBase = 20;
-		short destBase = 60;
-		bc.printNumber(number);
-		bc.printNumber(bc.convertInt(number, srcBase, destBase));
+		short[][] result = bc.convertFraction(new short[] {1}, (short)26, (short)10);
+		bc.printNumber(result[0]);
+		bc.printNumber(result[1]);
 		
 	}	
 }
