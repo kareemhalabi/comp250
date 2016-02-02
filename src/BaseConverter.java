@@ -71,13 +71,13 @@ public class BaseConverter {
 		}
 		
 		//truncate resulting array
-		return truncateTrailing(result);
+		return truncate(result);
 	}
 	
 	//assuming a >= b, b != 0
 	//performs a/b
 	//returns {quotient, remainder}
-	public short[][] div(short[] a, short[] b, short base) {
+	public short[][] divQuotientRemainder(short[] a, short[] b, short base) {
 		
 		//stores intermediate subtraction result
 		short[] subtractTemp = new short[a.length];
@@ -86,12 +86,14 @@ public class BaseConverter {
 		//stores quotient
 		short[] q = new short[a.length];
 		
-		//pointer indicies to keep track of the size of the arrays
-		//and the position to insert a digit into q
+		//pointer indicies to keep track of where
+		//to insert a digit into q
+		//and which index of subtractTemp
+		//to subtract the divisor b
 		int qPos = (subtractTemp.length - b.length);
-		int j = 0;
+		int subArrayLength = a.length;
 		while(qPos>=0) {
-			short[] subArray = new short[a.length-j];
+			short[] subArray = new short[subArrayLength];
 			System.arraycopy(b, 0, subArray, qPos, b.length);
 			
 			//repeated subtraction at highest indexed
@@ -108,53 +110,73 @@ public class BaseConverter {
 					q = add(q, one, base);
 				}
 			} catch(Exception e) {
-				qPos--; //decrement the pointer of the next digit to add to q 
-				j++; //
-				subtractTemp = truncateTrailing(subtractTemp);
-				subArray = truncateTrailing(subArray);
+				//decrement the pointer of the next digit to add to q
+				qPos--;  
+				//decrement the position of the next subtraction
+				//by the divisor b
+				subArrayLength--;
+				
+				//remove trailing 0s
+				subtractTemp = truncate(subtractTemp);
+				subArray = truncate(subArray);
 			}
 		}
 		
-		return new short[][] {truncateTrailing(q), truncateTrailing(subtractTemp)};
+		return new short[][] {truncate(q), truncate(subtractTemp)};
 	}
 	
 	//This version of div only handles fractions < 1 i.e
 	//assuming a<b b != 0
 	//performs a/b
 	//returns {nonRep, rep}
-	public short[][] divModified(short[] a, short[] b, short base) {
+	public short[][] divNonRep_Rep(short[] a, short[] b, short base) {
 		
 		//stores intermediate subtraction result
-		short[] temp = new short[a.length];
-		System.arraycopy(a, 0, temp, 0, a.length);
+		short[] subtractTemp = new short[a.length];
+		System.arraycopy(a, 0, subtractTemp, 0, a.length);
 		
 		//stores quotient
 		java.util.ArrayList<Short> q = new java.util.ArrayList<Short>();
 		//stores remainders
 		java.util.ArrayList<Short> remainders = new java.util.ArrayList<Short>();
 		
+		//stores current remainder
 		short remainder;
+		
+		//repeated subtraction
 		outer:while(true) {
 			
+			//add a new digit to the quotient
 			q.add(0, (short) 0);
 			try {
 				while(true) {
 					//once b>subArray, exception is thrown ending loop
-					temp = sub(temp, b, base);
+					subtractTemp = sub(subtractTemp, b, base);
 					q.set(0, (short) (q.get(0)+1)); //q[i]++
 				}
 			} catch(Exception e) {}
 			
-			remainder = digitsToShort(temp, base);
+			/* 
+			 * convert whatever is left in subtractTemp in base "base"
+			 * into a base 10 short that can be stored in the
+			 * ArrayList "remainders" so that it can be searched
+			 * for in further iterations
+			 */
+			
+			remainder = digitsToBase10Short(subtractTemp, base);
+			//stop the division loop if remainder has
+			//been seen before
 			if(remainders.contains(remainder))
 				break outer;
+			
+			//otherwise add to list
 			remainders.add(remainder);
 			
-			//copy temp into new array with a 0 at first index
-			temp = truncateTrailing(temp);
-			short[] temp2 = new short[temp.length + 1];
-			System.arraycopy(temp, 0, temp2, 1, temp.length);
-			temp = temp2;
+			//copy subtractTemp into new array with a 0 at first index
+			subtractTemp = truncate(subtractTemp);
+			short[] temp2 = new short[subtractTemp.length + 1];
+			System.arraycopy(subtractTemp, 0, temp2, 1, subtractTemp.length);
+			subtractTemp = temp2;
 		}
 		
 		/* 
@@ -164,16 +186,16 @@ public class BaseConverter {
 		int repeatingIndex = search(remainders, remainder);
 		
 		/*
-		 * Explanation of the indices:
+		 * Explanation of the array copies:
 		 * q lists the digits in the reverse way that we humans read them
 		 * it also includes the 0 to the left of the decimal place
 		 * 
 		 * the repeating part of q starts at index 0 and ends at
-		 * (q.size()-1)-repeatingIndex-1 inclusive
+		 * (q.size()-1)-repeatingIndex-1 (inclusive)
 		 * 
 		 * the non repeating part of q starts at (q.size()-1) - repeatingIndex
-		 * and ends at (q.size()-1)-1 inclusive
-		 * {omitting the 0 to the left of the decimal place}
+		 * and ends at (q.size()-1)-1 (inclusive)
+		 * (omitting the 0 to the left of the decimal place)
 		 * 
 		 */
 		short[] rep = convertToArray(q, 0, (q.size()-1) - repeatingIndex-1);
@@ -182,7 +204,7 @@ public class BaseConverter {
 		return new short[][] {nonRep, rep};
 	}
 	
-	//copies array from index "start" to index "end" (inclusive
+	//copies elements from index "start" to index "end" (inclusive)
 	public short[] convertToArray(java.util.ArrayList<Short> list, int start, int end) {
 		
 		short[] array = new short[end-start+1];
@@ -192,6 +214,7 @@ public class BaseConverter {
 		return array;
 	}
 	
+	//searches for first occurrence of "key" in "list"
 	public int search(java.util.ArrayList<Short> list, short key) {
 		
 		for(int i = 0; i < list.size(); i++)
@@ -200,18 +223,18 @@ public class BaseConverter {
 		return -1;
 	}
 	
-	public Short digitsToShort(short[] digits, short base) {
+	public Short digitsToBase10Short(short[] digits, short base) {
 		
-		short remainder = 0;
+		short base10 = 0;
 		for(int k = 0; k < digits.length; k++)
-			remainder += digits[k]*Math.pow(base, k);
-		return remainder;
+			base10 += digits[k]*Math.pow(base, k);
+		return base10;
 	}
 
 	//=========== Helper Methods ===========//
 	
 	//assuming non-null input with length > 0
-	public short[] truncateTrailing(short[] input) {
+	public short[] truncate(short[] input) {
 		//initialize the final length as the starting length
 		int finalLength = input.length;
 		while(input[finalLength-1] == 0 && finalLength > 1)
@@ -223,11 +246,11 @@ public class BaseConverter {
 		return finalResult;
 	}
 	
-	//represent "destBaseArray" in the base of "num"
+	//returns a short[] of "destBase" in the base of "srcBase"
 	public short[] destBaseArray(short srcBase, short destBase) {
 		
 		short[] destBaseInSrcBase = new short[6];
-		//for this assignment the largest neccesary array would be 6 digits
+		//for this assignment the largest necessary array would be 6 digits
 		//i.e (representing 60 in base 2 takes 6 digits)
 		short m = destBase;
 		int j = 0;
@@ -236,47 +259,62 @@ public class BaseConverter {
 			m = (short) (m/srcBase);
 			j++;
 		}
-		destBaseInSrcBase = truncateTrailing(destBaseInSrcBase);
+		destBaseInSrcBase = truncate(destBaseInSrcBase);
 		return destBaseInSrcBase;
 	}
 
-	//=========== Converters ===========//
+	//=========== Base Converter Methods ===========//
 	
-	//assuming: 2<=srcBase<=60, 2<=srcBase<=60,
-	//"num" is non-empty, not null and contains all positive digits
-	//that do not exceed "srcBase"-1
-	public short[] convertInt(short[] num, short srcBase, short destBase) {
+	/*
+	 * Assumptions:
+	 * 2<=srcBase<=60, 2<=destBase<=60
+	 * "intIn" is non-empty, not null
+	 * contains all positive digits that do not exceed "srcBase"-1
+	 */
+	public short[] convertInt(short[] intIn, short srcBase, short destBase) {
 		
+		//represent "destBase" in the base of "srcBase"
 		short[] destBaseInSrcBase = destBaseArray(srcBase, destBase);
 		
 		//copy the input to a new array
-		short[] number = new short[num.length];
-		System.arraycopy(num, 0, number, 0, num.length);
+		short[] number = new short[intIn.length];
+		System.arraycopy(intIn, 0, number, 0, intIn.length);
 		
 		//create result array large enough to hold result
 		short[] result = new short
-				[(int) (Math.ceil(Math.log(srcBase)/Math.log(destBase)))*num.length];
+				[(int) (Math.ceil(Math.log(srcBase)/Math.log(destBase)))*intIn.length];
 				// ceil( log(srcBase)
 				//       /log(destBase))*number_of_digits
 		
+		//index to keep track of where to insert the next digit
 		int i = 0;
 		
 		//ignoring negatives so only have to worry about equating to an array of 0s
 		while(!java.util.Arrays.equals(number, new short[number.length])) {
-			short[][] division = div(number, destBaseInSrcBase, srcBase);
+			
+			short[][] division = divQuotientRemainder(number, destBaseInSrcBase, srcBase);
+			//division[0] = quotient
+			//division[1] = remainder
 			
 			//represent remainder in new base
-			result[i] = digitsToShort(division[1], srcBase);
+			result[i] = digitsToBase10Short(division[1], srcBase);
 			
 			number = division[0]; // number = number / base
 			i++;
 		}
 		
-		return truncateTrailing(result);
+		return truncate(result);
 	}
 
+	/*
+	 * Assumptions:
+	 * 2<=srcBase<=60, 2<=destBase<=60
+	 * "fractionIn" is non-empty, not null
+	 * contains all positive digits that do not exceed "srcBase"-1
+	 */
 	public short[][] convertFraction(short[] fractionIn, short srcBase, short destBase) {
 		
+		//following the algorithm in the notes		
 		short[] p = convertInt(fractionIn, srcBase, destBase);
 		
 		short[] z = new short[fractionIn.length + 1];
@@ -284,7 +322,7 @@ public class BaseConverter {
 		
 		short[] q = convertInt(z, srcBase, destBase);
 		
-		return divModified(p,q,destBase);	
+		return divNonRep_Rep(p,q,destBase);	
 	}
 
 	public void printNumber(short [] num) {
@@ -304,7 +342,7 @@ public class BaseConverter {
 	public static void main(String[] args) {
 		BaseConverter bc = new BaseConverter();
 		
-		short[][] result = bc.convertFraction(new short[] {2,1}, (short)26, (short)10);
+		short[][] result = bc.convertFraction(new short[] {1,1}, (short)26, (short)10);
 		bc.printNumber(result[0]);
 		bc.printNumber(result[1]);
 		
