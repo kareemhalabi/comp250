@@ -342,7 +342,7 @@ public class BaseConverter {
 	public static void main(String[] args) {
 		BaseConverter bc = new BaseConverter();
 		
-		short[][] result = bc.convertFraction(new short[] {1,1}, (short)26, (short)10);
+		short[][] result = bc.convertFraction(new short[] {7,4,7,7}, (short)50, (short)6);
 		bc.printNumber(result[0]);
 		bc.printNumber(result[1]);
 		
