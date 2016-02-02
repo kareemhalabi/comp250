@@ -16,14 +16,14 @@ public class BaseConverter {
 		else
 			size = b.length +1;
 		
-		//creates arrays all of the same size
-		short[] result = new short[size];
+		//creates new arrays all of the same size
 		short[] inA = new short[size];
 		System.arraycopy(a, 0, inA, 0, a.length);
-		
 		short[] inB = new short[size];
 		System.arraycopy(b, 0, inB, 0, b.length);
+		short[] result = new short[size];
 		
+		//cycle through each digit
 		for(int i = 0; i < size - 1; i++) {
 			//perform sum
 			result[i] = (short) ((inA[i] + inB[i]) % base);
@@ -38,7 +38,9 @@ public class BaseConverter {
 			return result;
 		}
 		
-		//if not truncate array and return
+		//if not remove last 0 digit and return
+		//no need for truncate method since the
+		//decrement in size is known to always be 1
 		short[] temp = new short[size-1];
 		System.arraycopy(result, 0, temp, 0, (size-1));
 		return temp;
@@ -51,11 +53,13 @@ public class BaseConverter {
 		short[] result = new short[a.length];
 		
 		//copy arguments into new arrays
+		//of same size
 		short[] inA = new short[a.length];
 		System.arraycopy(a, 0, inA, 0, a.length);
 		short[] inB = new short[a.length];
 		System.arraycopy(b, 0, inB, 0, b.length);
 		
+		//cycle through each digit
 		for(int i = 0; i < inA.length; i++) {
 			//checks if a borrow is neccessary
 			if(inA[i]-inB[i] < 0) {
@@ -69,42 +73,49 @@ public class BaseConverter {
 		//truncate resulting array
 		return truncateTrailing(result);
 	}
+	
 	//assuming a >= b, b != 0
 	//performs a/b
 	//returns {quotient, remainder}
 	public short[][] div(short[] a, short[] b, short base) {
 		
 		//stores intermediate subtraction result
-		short[] temp = new short[a.length];
-		System.arraycopy(a, 0, temp, 0, a.length);
+		short[] subtractTemp = new short[a.length];
+		System.arraycopy(a, 0, subtractTemp, 0, a.length);
 		
 		//stores quotient
 		short[] q = new short[a.length];
 		
-		//indicies to keep track of the size of the arrays
-		int i = (temp.length-b.length);
+		//pointer indicies to keep track of the size of the arrays
+		//and the position to insert a digit into q
+		int qPos = (subtractTemp.length - b.length);
 		int j = 0;
-		while(i>=0) {
+		while(qPos>=0) {
 			short[] subArray = new short[a.length-j];
-			System.arraycopy(b, 0, subArray, i, b.length);
+			System.arraycopy(b, 0, subArray, qPos, b.length);
 			
+			//repeated subtraction at highest indexed
+			//digit of subtractTemp
 			try {
 				while(true) {
 					//once b>subArray, exception is thrown ending loop
-					temp = sub(temp, subArray, base);
+					subtractTemp = sub(subtractTemp, subArray, base);
+					
+					//if subtraction is successful, 1 is added
+					//to q at the appropriate index
 					short[] one = new short[q.length];
-					one[i] = 1;
+					one[qPos] = 1;
 					q = add(q, one, base);
 				}
 			} catch(Exception e) {
-				i--;
-				j++;
-				temp = truncateTrailing(temp);
+				qPos--; //decrement the pointer of the next digit to add to q 
+				j++; //
+				subtractTemp = truncateTrailing(subtractTemp);
 				subArray = truncateTrailing(subArray);
 			}
 		}
 		
-		return new short[][] {truncateTrailing(q), truncateTrailing(temp)};
+		return new short[][] {truncateTrailing(q), truncateTrailing(subtractTemp)};
 	}
 	
 	//This version of div only handles fractions < 1 i.e
@@ -146,30 +157,35 @@ public class BaseConverter {
 			temp = temp2;
 		}
 		
+		/* 
+		 * This index represents which step was the start
+		 * of the repeating series (exclusive)
+		 */
 		int repeatingIndex = search(remainders, remainder);
 		
-		//TODO fix the arrayCopies
-		short[] rep;
-		short[] nonRep;
-				
-		if (repeatingIndex != 0) {
-			rep = convertToArray(q, 0, q.size() - repeatingIndex - 1);
-			nonRep = convertToArray(q, q.size()-repeatingIndex,
-					(q.size() - 1));
-					//^^^^ the last index of q is the 0 to the left of the decimal place
-					//so we don't need it
-			
-			return new short[][] {nonRep, rep};
-		}
+		/*
+		 * Explanation of the indices:
+		 * q lists the digits in the reverse way that we humans read them
+		 * it also includes the 0 to the left of the decimal place
+		 * 
+		 * the repeating part of q starts at index 0 and ends at
+		 * (q.size()-1)-repeatingIndex-1 inclusive
+		 * 
+		 * the non repeating part of q starts at (q.size()-1) - repeatingIndex
+		 * and ends at (q.size()-1)-1 inclusive
+		 * {omitting the 0 to the left of the decimal place}
+		 * 
+		 */
+		short[] rep = convertToArray(q, 0, (q.size()-1) - repeatingIndex-1);
+		short[] nonRep = convertToArray(q, (q.size()-1) - repeatingIndex, (q.size()-1)-1);
 		
-		nonRep = new short[0];
-		rep = convertToArray(q, 0, q.size()-1);
 		return new short[][] {nonRep, rep};
 	}
 	
+	//copies array from index "start" to index "end" (inclusive
 	public short[] convertToArray(java.util.ArrayList<Short> list, int start, int end) {
 		
-		short[] array = new short[end-start];
+		short[] array = new short[end-start+1];
 		for(int i = 0; i < array.length; i++)
 			array[i] = list.get(start+i);
 		
@@ -193,21 +209,20 @@ public class BaseConverter {
 	}
 
 	//=========== Helper Methods ===========//
+	
+	//assuming non-null input with length > 0
 	public short[] truncateTrailing(short[] input) {
+		//initialize the final length as the starting length
 		int finalLength = input.length;
 		while(input[finalLength-1] == 0 && finalLength > 1)
-			finalLength--;
+			finalLength--; //decrement length if 0 is found
 		
+		//truncate array
 		short[] finalResult = new short[finalLength];
 		System.arraycopy(input, 0, finalResult, 0, finalLength);
 		return finalResult;
 	}
 	
-	public void truncateLeading(java.util.ArrayList<Short> input) {	
-		while(input.get(0) == 0)
-			input.remove(0);
-	}
-
 	//represent "destBaseArray" in the base of "num"
 	public short[] destBaseArray(short srcBase, short destBase) {
 		
@@ -289,7 +304,7 @@ public class BaseConverter {
 	public static void main(String[] args) {
 		BaseConverter bc = new BaseConverter();
 		
-		short[][] result = bc.convertFraction(new short[] {1}, (short)26, (short)10);
+		short[][] result = bc.convertFraction(new short[] {2,1}, (short)26, (short)10);
 		bc.printNumber(result[0]);
 		bc.printNumber(result[1]);
 		

@@ -84,4 +84,10 @@ public short[] addAll(short[][] numbers, short base) {
 		System.arraycopy(input, 0, finalResult, 0, finalLength);
 		return finalResult;
 	}
+	
+	public void truncateLeading(java.util.ArrayList<Short> input) {	
+		while(input.get(0) == 0)
+			input.remove(0);
+	}
+
 }
