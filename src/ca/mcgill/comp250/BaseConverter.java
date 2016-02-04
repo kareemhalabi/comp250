@@ -1,3 +1,4 @@
+package ca.mcgill.comp250;
 /**
  * Kareem Halabi
  * 260 616 162

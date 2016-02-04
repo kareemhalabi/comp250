@@ -4,6 +4,8 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import ca.mcgill.comp250.BaseConverter;
+
 /**
  * Kareem Halabi
  * 260 616 162
