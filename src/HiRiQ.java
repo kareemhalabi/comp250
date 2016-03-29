@@ -1,7 +1,9 @@
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
-
+import java.util.Queue;
 
 
 /**
@@ -25,7 +27,7 @@ public class HiRiQ {
 	
 	public HiRiQ parent;
 	public Move moveToParent;
-	public List<HiRiQ> children;
+	public ArrayList<HiRiQ> children;
 	
 	public class Move {
 		
@@ -52,6 +54,7 @@ public class HiRiQ {
 			}
 			return false;
 		}
+		
 	}
 
 	public HiRiQ(byte n) {
@@ -208,11 +211,44 @@ public class HiRiQ {
 			for(int i = 0; i < moves.size()-1; i++) {
 				System.out.print(moves.get(i) + " -> ");
 			}
-			System.out.print(moves.get(moves.size()-1));
+			if(moves.size() != 0)
+				System.out.print(moves.get(moves.size()-1));
 		}
 		
 		// returns an arraylist of all possible B moves and W moves;
-		public ArrayList<HashSet<Move>> findAvailableMoves() {
+		public ArrayList<Move> findAvailableMoves() {
+			boolean[] board = this.load();
+			ArrayList<Move> availableMoves = new ArrayList<Move>();
+			 
+			for(int i = 0; i < possibleConfigs.length; i++ ) {
+				byte t1 = possibleConfigs[i][0];
+				byte t2 = possibleConfigs[i][1];
+				byte t3 = possibleConfigs[i][2];
+				
+				//BBW
+				if (!board[t1] && !board[t2] && board[t3])
+					availableMoves.add(new Move(t1, t2, t3)); //t1"B"t3
+				
+				//WBB
+				else if (board[t1] && !board[t2] && !board[t3])
+					availableMoves.add(new Move(t3, t2, t1)); //t3"B"t1
+				
+				//W substitutions are added to the beginning to improve
+				//efficiency
+				
+				//WWB
+				else if (board[t1] && board[t2] && !board[t3])
+					availableMoves.add(0,new Move(t1, t2, t3)); //t1"W"t3
+				
+				//BWW
+				else if (!board[t1] && board[t2] && board[t3])
+					availableMoves.add(0,new Move(t3, t2, t1)); //t3"W"t1
+			}
+			
+			return availableMoves;
+		}
+		/*
+		 * 		public ArrayList<HashSet<Move>> findAvailableMoves() {
 			boolean[] board = this.load();
 			HashSet<Move> bMoves = new HashSet<Move>();
 			HashSet<Move> wMoves = new HashSet<Move>();
@@ -245,8 +281,9 @@ public class HiRiQ {
 			
 			return allMoves;
 		}
+		 */
 
-		// applies a move to a HiRiQ
+		// applies a move to a HiRiQ, throws exception if move is invalid
 		public void apply(Move move) throws Exception{
 			
 			boolean[] board = this.load();
@@ -267,8 +304,56 @@ public class HiRiQ {
 				throw new Exception("Invalid Move");
 		}
 		
-		public void solve() {
+		
+		static Queue<HiRiQ> toCheck = new LinkedList<HiRiQ>();
+		
+		long combinationsChecked = 0;
+		
+		static ArrayList<Move> movesToSolution;
+		
+		public void solve() throws Exception {
 			
+			toCheck.add(this);
+			while(true) {
+				
+				// takes current node off of the queue
+				HiRiQ current = toCheck.poll();
+//				current.print();
+//				System.out.println();
+				
+				// check the to see if solved
+				if(current.IsSolved()) {
+					movesToSolution = new ArrayList<Move>();
+					// cycles up the parents to generate a move path
+					while(current.moveToParent != null) {
+						movesToSolution.add(0,current.moveToParent);
+						current = current.parent;
+					}
+					printMoves(movesToSolution);
+					toCheck.clear();
+					break;
+				}
+				
+				// if not, add all the node's children to the queue
+				
+				ArrayList<Move> possibleMoves = current.findAvailableMoves();
+				current.children = new ArrayList<HiRiQ>();
+				
+				//removes the move to parent from the possible Moves to prevent infinite loop
+				possibleMoves.remove(current.moveToParent);
+
+				
+				for(Move m : possibleMoves) {
+					HiRiQ child = new HiRiQ(current.config, current.weight);
+					child.apply(m);
+					child.parent = current;
+					child.moveToParent = m;
+					current.children.add(child);
+					toCheck.add(child);
+				}
+				
+				combinationsChecked++;
+			}
 		}
 
 		
@@ -276,13 +361,13 @@ public class HiRiQ {
 			
 			boolean[] configuration = {
 							
-								true, 	true,	true,
-								true, 	true,	true,
-				true,	true,	true,	true,	true,	true,	true,
-				true,	true,	true,	false,	true,	true,	true,
-				true,	true,	true,	true,	true,	true,	true,
-								true,	true,	true,
-								true,	true,	true
+								false, 	false,	false,
+								false, 	false,	false,
+				false,	false,	false,	false,	false,	false,	false,
+				false,	false,	false,	true,	false,	false,	false,
+				false,	false,	false,	false,	false,	false,	false,
+								false,	false,	false,
+								false,	false,	false
 					
 			};
 			/*					0		1		2
@@ -295,16 +380,52 @@ public class HiRiQ {
 			 */
 			
 			
-			HiRiQ board = new HiRiQ(configuration);
+			HiRiQ board = new HiRiQ(-1679826944, (byte)6);
 			
-			Move m = board.new Move((byte)16, (byte)17,(byte)18);
+//			ArrayList<Move> moves = new ArrayList<Move>();
+//			
+//			ArrayList<Move> appliedMoves = new ArrayList<Move>();
+//			
+//			Move parentMove = null;
+//			restart:
+//			for(int i = 0; i < 6; i++) {
+//				moves = board.findAvailableMoves();
+//				moves.remove(parentMove);
+//				if(moves.size() == 0) {
+////					appliedMoves.clear();
+//					continue restart;
+//				}
+//				parentMove = moves.get((int) (Math.random()*(moves.size()-1)));
+//				try {
+//					board.apply(parentMove);
+////					appliedMoves.add(parentMove);
+//				} catch (Exception e) {
+//					// TODO Auto-generated catch block
+//					e.printStackTrace();
+//				}
+//			}
 			
 			try {
-				board.apply(m);
+				
+				HiRiQ original = new HiRiQ(board.config, board.weight);
+				
 				board.print();
+				long start = System.nanoTime();
+				board.solve();
+				long end = System.nanoTime();
+				System.out.println("\nCombinations checked: " + board.combinationsChecked);
+//				System.out.println("Applied Moves: ");
+//				printMoves(appliedMoves);
+				
+//				for(Move m: movesToSolution) {
+//					original.apply(m);
+//				}
+//				System.out.println("Verified: " + original.IsSolved());
+				
+				System.out.println("Took: " + (end-start)/1000000000f + " seconds");
+				
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
-			
 		}
 }
