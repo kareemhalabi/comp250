@@ -247,41 +247,6 @@ public class HiRiQ {
 			
 			return availableMoves;
 		}
-		/*
-		 * 		public ArrayList<HashSet<Move>> findAvailableMoves() {
-			boolean[] board = this.load();
-			HashSet<Move> bMoves = new HashSet<Move>();
-			HashSet<Move> wMoves = new HashSet<Move>();
-			 
-			for(int i = 0; i < possibleConfigs.length; i++ ) {
-				byte t1 = possibleConfigs[i][0];
-				byte t2 = possibleConfigs[i][1];
-				byte t3 = possibleConfigs[i][2];
-				
-				//BBW
-				if (!board[t1] && !board[t2] && board[t3])
-					bMoves.add(new Move(t1, t2, t3)); //t1"B"t3
-				
-				//WBB
-				else if (board[t1] && !board[t2] && !board[t3])
-					bMoves.add(new Move(t3, t2, t1)); //t3"B"t1
-				
-				//WWB
-				else if (board[t1] && board[t2] && !board[t3])
-					wMoves.add(new Move(t1, t2, t3)); //t1"W"t3
-				
-				//BWW
-				else if (!board[t1] && board[t2] && board[t3])
-					wMoves.add(new Move(t3, t2, t1)); //t3"W"t1
-			}
-
-			ArrayList<HashSet<Move>> allMoves = new ArrayList<HashSet<Move>>();
-			allMoves.add(bMoves);
-			allMoves.add(wMoves);
-			
-			return allMoves;
-		}
-		 */
 
 		// applies a move to a HiRiQ, throws exception if move is invalid
 		public void apply(Move move) throws Exception{
@@ -307,14 +272,20 @@ public class HiRiQ {
 		
 		static Queue<HiRiQ> toCheck = new LinkedList<HiRiQ>();
 		
+		//caps the Queue size
+		static int toCheckCap = 10000000;
+		
+		//TODO Implement queue cap
+		//TODO Implement DFS level cap
+		
 		long combinationsChecked = 0;
 		
-		static ArrayList<Move> movesToSolution;
+		public ArrayList<Move> movesToSolution;
 		
 		public void solve() throws Exception {
 			
 			toCheck.add(this);
-			while(true) {
+			while(!toCheck.isEmpty()) {
 				
 				// takes current node off of the queue
 				HiRiQ current = toCheck.poll();
@@ -331,29 +302,30 @@ public class HiRiQ {
 					}
 					printMoves(movesToSolution);
 					toCheck.clear();
-					break;
+					return;
 				}
 				
 				// if not, add all the node's children to the queue
 				
-				ArrayList<Move> possibleMoves = current.findAvailableMoves();
-				current.children = new ArrayList<HiRiQ>();
-				
-				//removes the move to parent from the possible Moves to prevent infinite loop
-				possibleMoves.remove(current.moveToParent);
-
-				
-				for(Move m : possibleMoves) {
-					HiRiQ child = new HiRiQ(current.config, current.weight);
-					child.apply(m);
-					child.parent = current;
-					child.moveToParent = m;
-					current.children.add(child);
-					toCheck.add(child);
+				if (toCheck.size() <= toCheckCap) {
+					ArrayList<Move> possibleMoves = current.findAvailableMoves();
+					current.children = new ArrayList<HiRiQ>();
+					//removes the move to parent from the possible Moves to prevent infinite loop
+					possibleMoves.remove(current.moveToParent);
+					for (Move m : possibleMoves) {
+						HiRiQ child = new HiRiQ(current.config, current.weight);
+						child.apply(m);
+						child.parent = current;
+						child.moveToParent = m;
+						current.children.add(child);
+						toCheck.add(child);
+					} 
 				}
-				
 				combinationsChecked++;
+//				System.out.println("Queue size: " + toCheck.size());
 			}
+			
+			System.err.println("Maxed out queue, could not find a solution");
 		}
 
 		
@@ -379,50 +351,57 @@ public class HiRiQ {
 			 * 					30		31		32
 			 */
 			
+//			int puzzles = 0;
+//			long totalTime = 0;
+//			long maxTime = 0;
+//			long minTime = Long.MAX_VALUE;
+//			long maxCombinations = 0;
+//			long minCombinations = Long.MAX_VALUE;
 			
-			HiRiQ board = new HiRiQ(-1679826944, (byte)6);
+			HiRiQ test = new HiRiQ(434624, (byte)7);
 			
-//			ArrayList<Move> moves = new ArrayList<Move>();
-//			
-//			ArrayList<Move> appliedMoves = new ArrayList<Move>();
-//			
-//			Move parentMove = null;
-//			restart:
-//			for(int i = 0; i < 6; i++) {
-//				moves = board.findAvailableMoves();
-//				moves.remove(parentMove);
-//				if(moves.size() == 0) {
-////					appliedMoves.clear();
-//					continue restart;
-//				}
-//				parentMove = moves.get((int) (Math.random()*(moves.size()-1)));
-//				try {
-//					board.apply(parentMove);
-////					appliedMoves.add(parentMove);
-//				} catch (Exception e) {
-//					// TODO Auto-generated catch block
-//					e.printStackTrace();
-//				}
-//			}
+			HiRiQ original = new HiRiQ(test.config, test.weight);
+			
+			System.out.println("\n" + test.config + ", " + test.weight);
+			test.print();
 			
 			try {
-				
-				HiRiQ original = new HiRiQ(board.config, board.weight);
-				
-				board.print();
 				long start = System.nanoTime();
-				board.solve();
+				test.solve();
 				long end = System.nanoTime();
-				System.out.println("\nCombinations checked: " + board.combinationsChecked);
-//				System.out.println("Applied Moves: ");
-//				printMoves(appliedMoves);
 				
-//				for(Move m: movesToSolution) {
-//					original.apply(m);
-//				}
-//				System.out.println("Verified: " + original.IsSolved());
-				
+				System.out.println("\nCombinations checked: " + test.combinationsChecked);
 				System.out.println("Took: " + (end-start)/1000000000f + " seconds");
+				
+				//restore original and verify
+				for(HiRiQ.Move m: test.movesToSolution) {
+					original.apply(m);
+				}
+				if(!original.IsSolved()) {
+					throw new Exception("Solution incorrect");
+				}
+				
+				System.out.println("Verified: " + original.IsSolved());
+				
+//				puzzles++;
+//				totalTime += end-start;
+//				
+//				if((end-start)>maxTime)
+//					maxTime = end-start;
+//				else if((end-start) < minTime)
+//					minTime = end-start;
+//				if(test.combinationsChecked > maxCombinations)
+//					maxCombinations = test.combinationsChecked;
+//				if(test.combinationsChecked < minCombinations)
+//					minCombinations = test.combinationsChecked;
+//				
+//				System.out.println("\n\n"+"Puzzles checked: " + puzzles);
+//				System.out.println("Total time so far: " + (totalTime/1000000000f) + " seconds");
+//				System.out.println("Average time: " + (totalTime/1000000000f)/puzzles + " seconds");
+//				System.out.println("Max time so far: " + (maxTime/1000000000f) + " seconds");
+//				System.out.println("Min time so far: " + (minTime/1000000000f) + " seconds");
+//				System.out.println("Max combinations checked: " + maxCombinations);
+//				System.out.println("Min combinations checked: " + minCombinations);
 				
 			} catch (Exception e) {
 				e.printStackTrace();
